@@ -1,5 +1,11 @@
 # @manypkg/get-packages
 
+## 1.1.2
+
+### Patch Changes
+
+- [`5f6cded`](https://github.com/Thinkmill/manypkg/commit/5f6cdedf6843d60144c1ea65b5a8ef0c4b7f0bd5) [#111](https://github.com/Thinkmill/manypkg/pull/111) Thanks [@maraisr](https://github.com/maraisr)! - Includes types dependencies for PackageJson type
+
 ## 1.1.1
 
 ### Patch Changes
