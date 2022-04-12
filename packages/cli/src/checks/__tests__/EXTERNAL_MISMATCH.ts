@@ -298,7 +298,7 @@ it("should error and fix the version to the closest allowed one when adding an a
     expect.objectContaining({
       dependencyName: "something",
       dependencyRange: "^2.1.0",
-      expectedRange: '2.0.0'
+      expectedRange: "2.0.0"
     })
   );
   internalMismatch.fix(errors[0], options);
@@ -317,7 +317,7 @@ it("should error and fix the version to the closest allowed one when adding an a
     expect.objectContaining({
       dependencyName: "something",
       dependencyRange: "^1.0.1",
-      expectedRange: '^1.0.0'
+      expectedRange: "^1.0.0"
     })
   );
   internalMismatch.fix(errors[0], options);
@@ -362,9 +362,118 @@ it("should error and fix the version to the highest allowed one when adding a ne
     expect.objectContaining({
       dependencyName: "something",
       dependencyRange: "3.0.0",
-      expectedRange: '^2.0.0'
+      expectedRange: "^2.0.0"
     })
   );
   internalMismatch.fix(errors[0], options);
   expect(pkg3.packageJson.dependencies.something).toEqual("^2.0.0");
+});
+
+it("should fix the version to the highest allowed one for peer deps with one version", () => {
+  const options = {
+    allowedDependencyVersions: {
+      something: ["1.0.0", "^2.0.0"]
+    }
+  };
+
+  let ws = getWS();
+
+  ws.get("pkg-1")!.packageJson.dependencies = { something: "1.0.0" };
+
+  // version 1.0.0 is the most commonly used one
+  let pkg1a = getFakeWS("pkg-1a");
+  pkg1a.packageJson.dependencies = {
+    something: "1.0.0"
+  };
+  ws.set("pkg-1a", pkg1a);
+
+  // version 2.0.0 is allowed
+  let pkg2 = getFakeWS("pkg-2");
+  pkg2.packageJson.dependencies = {
+    something: "^2.0.0"
+  };
+  ws.set("pkg-2", pkg2);
+
+  // peer dep with version 3.0.0
+  let pkg3 = getFakeWS("pkg-3");
+  pkg3.packageJson.peerDependencies = {
+    something: "3.0.0"
+  };
+  ws.set("pkg-3", pkg3);
+
+  let errors = internalMismatch.validate(pkg3, ws, rootWorkspace, options);
+  expect(errors.length).toEqual(1);
+  expect(errors[0]).toEqual(
+    expect.objectContaining({
+      dependencyName: "something",
+      dependencyRange: "3.0.0",
+      expectedRange: "^2.0.0"
+    })
+  );
+  internalMismatch.fix(errors[0], options);
+  expect(pkg3.packageJson.peerDependencies.something).toEqual("^2.0.0");
+});
+
+it("should fix the version to all allowed ones for peer deps with multiple versions", () => {
+  const options = {
+    allowedDependencyVersions: {
+      something: ["1.0.0", "^2.0.0"]
+    }
+  };
+
+  let ws = getWS();
+
+  const pkg1 = ws.get("pkg-1");
+  pkg1.packageJson.peerDependencies = { something: "^1.0.0 || 3.0.0" };
+
+  let errors = internalMismatch.validate(pkg1, ws, rootWorkspace, options);
+  expect(errors.length).toEqual(1);
+  expect(errors[0]).toEqual(
+    expect.objectContaining({
+      dependencyName: "something",
+      dependencyRange: "^1.0.0 || 3.0.0",
+      expectedRange: "1.0.0 || ^2.0.0"
+    })
+  );
+  internalMismatch.fix(errors[0], options);
+  expect(pkg1.packageJson.peerDependencies.something).toEqual(
+    "1.0.0 || ^2.0.0"
+  );
+});
+
+it("should fix the version to the first one for peer deps with multiple versions when not configured in allowedDependencyVersions", () => {
+  const options = {
+    allowedDependencyVersions: {}
+  };
+
+  let ws = getWS();
+
+  const pkg1 = ws.get("pkg-1");
+  pkg1.packageJson.peerDependencies = { something: "^1.0.0 || 3.0.0" };
+
+  let errors = internalMismatch.validate(pkg1, ws, rootWorkspace, options);
+  expect(errors.length).toEqual(1);
+  expect(errors[0]).toEqual(
+    expect.objectContaining({
+      dependencyName: "something",
+      dependencyRange: "^1.0.0 || 3.0.0",
+      expectedRange: "^1.0.0"
+    })
+  );
+  internalMismatch.fix(errors[0], options);
+  expect(pkg1.packageJson.peerDependencies.something).toEqual("^1.0.0");
+});
+
+it("should not error when adding new peer deps with one version when not configured in allowedDependencyVersions", () => {
+  const options = {
+    allowedDependencyVersions: {}
+  };
+
+  let ws = getWS();
+
+  const pkg1 = ws.get("pkg-1");
+  pkg1.packageJson.peerDependencies = { something: "^1.0.0" };
+
+  let errors = internalMismatch.validate(pkg1, ws, rootWorkspace, options);
+  expect(errors.length).toEqual(0);
 });
